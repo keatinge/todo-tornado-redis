@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
+    <script
+      src="https://code.jquery.com/jquery-3.1.1.min.js"
+      integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+      crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.js"></script>
+    <style>
+        body {
+            background-color: #d6d6d6;
+            font-family: "Helvetica", Times;
+        }
+
+        .todo-header {
+
+            font-size: 60px;
+            margin:auto;
+            text-align: center;
+            margin-bottom: 20px;
+            margin-top: 100px;
+            color: #595959;
+            font-weight: lighter;
+            display: block;
+        }
+
+        .todo:nth-child(1) {
+            border-top: none;
+        }
+        .todo {
+            position: relative;
+            border-top: 1px solid rgba(89, 89, 89, .4);
+            padding-top: 20px;
+            padding-bottom: 20px;
+            padding-left: 50px;
+            display: block;
+            text-align: left;
+        }
+
+        .todo-box {
+            background-color: #fff;
+            font-size: 30px;
+            width: 800px;
+            margin-left:auto;
+            margin-right:auto;
+            border-radius: 20px;
+            padding: 20px;
+            color: #595959;
+            border: 2px solid lightgrey;
+        }
+        .todo-title {
+            color: #3a3a3a;
+            line-height: 30px;
+        }
+        .todo-desc {
+            margin-top: 5px;
+            font-size: 20px;
+            color: #595959;
+        }
+
+        .checkbox-container {
+            left: 0;
+            position: absolute;
+            display: inline-block;
+        }
+
+
+
+        .checkbox-container .ui.checkbox {
+            line-height: 30px;
+            min-height: 30px;
+        }
+        .checkbox-container .ui.checkbox label:before,
+        .checkbox-container .ui.checkbox label:after {
+            width: 30px;
+            height: 30px;
+            font-size: 30px;
+            color: green !important;
+        }
+
+        .checkbox-container .ui.checkbox input[type=checkbox] {
+            width: 30px;
+            height: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div style="width:100%">
+         <span class="todo-header">Todos</span>
+         <div class="todo-box" id="all_todos">
+
+             <div class="todo">
+                 <div class="checkbox-container">
+                      <div class="ui checkbox">
+                        <input type="checkbox" name="example">
+                        <label></label>
+                    </div>
+                 </div>
+
+                 <div class="todo-title">
+                     Finish this todo app
+                 </div>
+             </div><div class="todo">
+                 <div class="checkbox-container">
+                      <div class="ui checkbox">
+                        <input type="checkbox" name="example">
+                        <label></label>
+                    </div>
+                 </div>
+
+                 <div class="todo-title">
+                     Finish this todo app
+                 </div>
+             </div><div class="todo">
+                 <div class="checkbox-container">
+                      <div class="ui checkbox">
+                        <input type="checkbox" name="example">
+                        <label></label>
+                    </div>
+                 </div>
+
+                 <div class="todo-title">
+                     Finish this todo app
+                 </div>
+             </div>
+
+
+         </div>
+    </div>
+
+
+</body>
+
+
+<script>
+
+    function escapeHtml(unsafe) {
+        // https://stackoverflow.com/questions/6234773
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+     }
+
+    function get_todo_html(todo_data) {
+        let escaped_title = escapeHtml(todo_data["title"]);
+        let escaped_id = todo_data["id"].toString().match(/\d*/);
+        let escaped_checked = escapeHtml(todo_data["completed"].toString());
+
+        console.log(escaped_checked);
+        let template = `<div class="todo">
+                 <div class="checkbox-container">
+                      <div class="ui checkbox">
+                        <input type="checkbox" id="checkbox_${escaped_id}" ${todo_data["completed"] ? "checked" : ""}>
+                        <label></label>
+                    </div>
+                 </div>
+
+                 <div class="todo-title">
+                     ${escaped_title}
+                 </div>
+             </div>`;
+
+        return template;
+
+
+    }
+
+    function insert_todos(all_todos) {
+        let full_html = all_todos.map(get_todo_html).join("\n")
+        let all_todos_div = document.getElementById("all_todos")
+        all_todos_div.innerHTML = full_html;
+    }
+
+
+    let ws = new WebSocket("ws://localhost:8888/ws")
+    let todos = []
+    ws.onopen = () => {
+        console.log("Socket is open");
+        ws.send("get_todos");
+    }
+
+    ws.onmessage = (msg) => {
+        let message_data = JSON.parse(msg.data);
+        if (message_data["message_type"] == "todos_update") {
+            insert_todos(message_data["todos"]);
+        }
+
+    }
+
+
+</script>
+</html>
