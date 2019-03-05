@@ -22,7 +22,7 @@
             text-align: center;
             margin-bottom: 20px;
             margin-top: 100px;
-            color: #595959;
+            color: black;
             font-weight: lighter;
             display: block;
         }
@@ -35,9 +35,11 @@
             border-top: 1px solid rgba(89, 89, 89, .4);
             padding-top: 20px;
             padding-bottom: 20px;
-            padding-left: 50px;
-            display: block;
-            text-align: left;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .todo-box {
@@ -54,6 +56,10 @@
         .todo-title {
             color: #3a3a3a;
             line-height: 30px;
+            display: inline-block;
+            justify-self: start;
+            margin-right: auto;
+            margin-left: 20px;
         }
         .todo-desc {
             margin-top: 5px;
@@ -62,8 +68,6 @@
         }
 
         .checkbox-container {
-            left: 0;
-            position: absolute;
             display: inline-block;
         }
 
@@ -85,57 +89,67 @@
             width: 30px;
             height: 30px;
         }
+
+        .input-box {
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 15px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .todo > .close.icon {
+            font-size: 30px;
+            margin-top: .4em;
+            opacity: .4;
+        }
+
+        .todo > .close.icon:hover {
+            opacity: 1;
+            cursor: pointer;
+            color: darkred;
+        }
     </style>
 </head>
 <body>
-    <div style="width:100%">
-         <span class="todo-header">Todos</span>
-         <div class="todo-box" id="all_todos">
+<div style="width:100%">
+    <span class="todo-header">Todos</span>
+    <div class="todo-box">
 
-             <div class="todo">
-                 <div class="checkbox-container">
-                      <div class="ui checkbox">
-                        <input type="checkbox" name="example">
-                        <label></label>
-                    </div>
-                 </div>
+        <div class="todo-items" id="all_todos">
 
-                 <div class="todo-title">
-                     Finish this todo app
-                 </div>
-             </div><div class="todo">
-                 <div class="checkbox-container">
-                      <div class="ui checkbox">
-                        <input type="checkbox" name="example">
-                        <label></label>
-                    </div>
-                 </div>
-
-                 <div class="todo-title">
-                     Finish this todo app
-                 </div>
-             </div><div class="todo">
-                 <div class="checkbox-container">
-                      <div class="ui checkbox">
-                        <input type="checkbox" name="example">
-                        <label></label>
-                    </div>
-                 </div>
-
-                 <div class="todo-title">
-                     Finish this todo app
-                 </div>
-             </div>
+        </div>
+        <div class="input-box">
 
 
-         </div>
+            <div class="ui input" style="flex-grow:4">
+                <input id="todo_text_input" type="text" placeholder="Walk the dog">
+            </div>
+            <button class="ui secondary button" style="flex-grow:1; margin-left: 20px" onclick="add_todo()">
+                    Add
+            </button>
+
+
+
+
+        </div>
+
     </div>
+
+
+
+
+</div>
 
 
 </body>
 
 
 <script>
+
+
+    let ws = new WebSocket("ws://localhost:8888/ws")
 
     function escapeHtml(unsafe) {
         // https://stackoverflow.com/questions/6234773
@@ -153,10 +167,11 @@
         let escaped_checked = escapeHtml(todo_data["completed"].toString());
 
         console.log(escaped_checked);
-        let template = `<div class="todo">
+        let template = `
+            <div class="todo">
                  <div class="checkbox-container">
                       <div class="ui checkbox">
-                        <input type="checkbox" id="checkbox_${escaped_id}" ${todo_data["completed"] ? "checked" : ""}>
+                        <input type="checkbox" id="checkbox_${escaped_id}" ${todo_data["completed"] ? "checked" : ""} onclick="toggle_completed(${escaped_id})">
                         <label></label>
                     </div>
                  </div>
@@ -164,6 +179,8 @@
                  <div class="todo-title">
                      ${escaped_title}
                  </div>
+
+                 <i class="close icon" onclick="delete_todo(${escaped_id})"></i>
              </div>`;
 
         return template;
@@ -172,26 +189,71 @@
     }
 
     function insert_todos(all_todos) {
+
+        all_todos.sort((a, b) => a.id - b.id);
         let full_html = all_todos.map(get_todo_html).join("\n")
         let all_todos_div = document.getElementById("all_todos")
         all_todos_div.innerHTML = full_html;
     }
 
-
-    let ws = new WebSocket("ws://localhost:8888/ws")
-    let todos = []
-    ws.onopen = () => {
-        console.log("Socket is open");
-        ws.send("get_todos");
-    }
-
-    ws.onmessage = (msg) => {
-        let message_data = JSON.parse(msg.data);
-        if (message_data["message_type"] == "todos_update") {
-            insert_todos(message_data["todos"]);
+    function init() {
+        let todos = []
+        ws.onopen = () => {
+            console.log("Socket is open");
+            let get_todos_msg = {
+                message_type : "get_todos",
+            };
+            ws.send(JSON.stringify(get_todos_msg));
         }
 
+        ws.onmessage = (msg) => {
+            let message_data = JSON.parse(msg.data);
+            if (message_data["message_type"] == "todos_update") {
+                insert_todos(message_data["todos"]);
+            }
+        }
     }
+
+    function add_todo() {
+        let todo_text = document.getElementById("todo_text_input").value;
+        let todo_data = {
+            "title": todo_text,
+            "completed": false,
+        };
+
+        add_todo_message = {
+            "message_type" : "add_todo",
+            "new_todo" : todo_data,
+        };
+
+        ws.send(JSON.stringify(add_todo_message));
+
+    }
+
+    function delete_todo(id) {
+        del_todo_message = {
+            "message_type" : "del_todo",
+            "todo_id" : id,
+        }
+
+        ws.send(JSON.stringify(del_todo_message));
+    }
+
+
+    function toggle_completed(id) {
+        message = {
+            "message_type" : "set_checked_state",
+            "todo_id": id,
+            "is_checked" : document.getElementById(`checkbox_${id}`).checked,
+        };
+        ws.send(JSON.stringify(message));
+    }
+
+    init();
+
+
+
+
 
 
 </script>
